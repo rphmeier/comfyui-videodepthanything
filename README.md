@@ -2,6 +2,10 @@
 
 A fork of https://github.com/DepthAnything/Video-Depth-Anything/ with ComfyUI nodes added.
 
+## Installation
+
+Clone this repo into your `ComfyUI/custom_nodes` directory.
+
 Download the small/large encoders from the huggingface repos to the `comfyUI/models/videodepthanything` directory.
 
 ```

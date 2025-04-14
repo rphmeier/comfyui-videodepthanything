@@ -34,8 +34,6 @@ class VideoDepthAnythingLoader:
     def loadmodel(self, model_name, config_name):
         model_path = folder_paths.get_full_path("videodepthanything", model_name)
 
-        # safe_load might need to be false because of pickle.
-        # state = load_torch_file(model_path, safe_load=True)
         state = torch.load(model_path, map_location='cpu')
 
         model_configs = {
@@ -56,6 +54,10 @@ class VideoDepthAnythingProcess:
                 "model": ("VDAMODEL",),
                 "frames": ("IMAGE",),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 100, "tooltip": "frames-per-second of the video"}),
+            },
+            "optional": {
+                "input_size": ("INT", {"default": 518, "tooltip": "height/width actually used during inference. the original video is scaled to this dimension"}),
+                "grayscale": ("BOOLEAN", {"default": False, "tooltip": "Whether to generate a grayscale depth map"}),
             }
         }
 
@@ -65,7 +67,7 @@ class VideoDepthAnythingProcess:
     CATEGORY = "VideoDepthAnything"
     DESCRIPTION = "Run VideoDepthAnything on the provided input image"
 
-    def process(self, model, frames, fps):
+    def process(self, model, frames, fps, input_size=518, grayscale=False):
         # VideoDepthAnything expects uint8 pixeldata
         if frames.dtype == torch.float32 and frames.max() <= 1.0:
             frames = (frames * 255).clamp(0, 255).to(torch.uint8)
@@ -82,11 +84,10 @@ class VideoDepthAnythingProcess:
         frames = frames.cpu().numpy()
 
         # 3. run inference
-        input_size = 518 # copied from run.py TODO not sure what this is
         depths, fps = model.infer_video_depth(frames, fps, input_size=input_size, device=device.type)
 
         # 4. transform back into image list and return
-        return (into_frames_list(depths, fps),)
+        return (into_frames_list(depths, fps, grayscale),)
 
 # adapted from dc_utils/save_video
 def into_frames_list(frames, fps, grayscale=False):
