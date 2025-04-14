@@ -21,7 +21,7 @@ class VideoDepthAnythingLoader:
         return {
             "required": {
                 "model_name": (folder_paths.get_filename_list("videodepthanything"), {"tooltip": "These models are loaded from 'ComfyUI/models/videodepthanything'"}),
-                "config_name": (["vits", "vitl"], {"tooltip": "choose according to the model: vits=small, vitl=large"})
+                "config_name": (["vitl", "vits"], {"tooltip": "choose according to the model: vits=small, vitl=large"})
             }
         }
 
@@ -52,7 +52,7 @@ class VideoDepthAnythingProcess:
         return {
             "required": {
                 "model": ("VDAMODEL",),
-                "frames": ("IMAGE",),
+                "images": ("IMAGE",),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 100, "tooltip": "frames-per-second of the video"}),
             },
             "optional": {
@@ -62,15 +62,15 @@ class VideoDepthAnythingProcess:
         }
 
     RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("depths",)
+    RETURN_NAMES = ("images",)
     FUNCTION = "process"
     CATEGORY = "VideoDepthAnything"
     DESCRIPTION = "Run VideoDepthAnything on the provided input image"
 
-    def process(self, model, frames, fps, input_size=518, grayscale=False):
+    def process(self, model, images, fps, input_size=518, grayscale=False):
         # VideoDepthAnything expects uint8 pixeldata
-        if frames.dtype == torch.float32 and frames.max() <= 1.0:
-            frames = (frames * 255).clamp(0, 255).to(torch.uint8)
+        if images.dtype == torch.float32 and images.max() <= 1.0:
+            images = (images * 255).clamp(0, 255).to(torch.uint8)
 
         # clear memory before sampling
         mm.unload_all_models()
@@ -80,11 +80,10 @@ class VideoDepthAnythingProcess:
         device = mm.get_torch_device()
         model = model.to(device).eval() 
 
-        # convert video list[Image.Image] into frames, fps
-        frames = frames.cpu().numpy()
+        images = images.cpu().numpy()
 
         # 3. run inference
-        depths, fps = model.infer_video_depth(frames, fps, input_size=input_size, device=device.type)
+        depths, fps = model.infer_video_depth(images, fps, input_size=input_size, device=device.type)
 
         # 4. transform back into image list and return
         return (into_frames_list(depths, fps, grayscale),)
